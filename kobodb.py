@@ -1,5 +1,27 @@
 #!/usr/bin/env python
 
+# MIT License
+
+# Copyright (c) 2025 ema
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import sqlite3
 import argparse
 import os
@@ -111,6 +133,9 @@ def seconds_to_str(secs):
    seconds = secs - 3600*hours - 60*minutes
    return '{}h {}min {}sec'.format(hours, minutes, seconds)
    
+def to_str(field):
+   return '-' if field == None else field
+   
 def print_book_info(book):
    print('Title: {}'.format(book.title))
    print('Author: {}'.format(book.author))
@@ -136,6 +161,19 @@ def print_bookmark(bm):
    if bm.annotation != None and bm.annotation != '':
       print('Annotation: "{}"'.format(bm.annotation))
    print('-'*80)
+
+def export_books(books, filename):
+   Columns = ['title','author','mime_type','language','filepath','filesize','read_status','last_read_date','percent_read']
+   Separator = '\t'
+   f = open(filename, 'w')
+   f.write(Separator.join(Columns))
+   f.write('\n')
+   for b in books:
+      data = [b.title,b.author,b.mime_type,b.language,b.filepath,str(b.filesize),b.read_status,b.last_read_date,str(b.percent_read)]
+      data = map(to_str, data)
+      f.write(Separator.join(data))
+      f.write('\n')
+   f.close()
    
 def book_status(status):
    if status == 'read':
@@ -146,13 +184,14 @@ def book_status(status):
       return KoboDB.BOOK_IN_PROGRESS
    else:
       return None
-         
+
 def main():
    parser = argparse.ArgumentParser(description='Get information from a Kobo sqlite database. This is stored in <KOBO DRIVE:>\\.kobo\\KoboReader.sqlite on the device filesystem.')
    parser.add_argument('database', help='Kobo sqlite database file')
    group = parser.add_mutually_exclusive_group()
    group.add_argument('-v', '--version', help='show Kobo database version', action='store_true')
    group.add_argument('-l', '--list',  nargs='?', const='all', choices=['all', 'read', 'unread', 'progress'], help='list books stored in the database')
+   group.add_argument('-e', '--export', help='export to TAB separated text file')
    group.add_argument('-b', '--bookmark', help='show bookmarks', action='store_true')
    group.add_argument('-t', '--title', help='show book(s) info')   
    group.add_argument('-a', '--author', help='show all the books of an author')   
@@ -182,6 +221,10 @@ def main():
       elif args.author != None:
          for i,b in enumerate(db.get_books(author=args.author)):
             print('{0}) {1} - {2}'.format(i+1, b.title, b.author))
+            
+      elif args.export != None:
+         export_books(db.get_books(), args.export)
+         print('database content exported to file {0}.'.format(args.export))
             
       else:
          parser.print_usage()
